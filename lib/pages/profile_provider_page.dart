@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'login_page.dart';
 import 'edit_profile_page.dart';
+import '../widgets/rating_stars_widget.dart';
+import '../services/rating_services.dart';
+import '../models/rating_model.dart';
 
 class ProviderProfilePage extends StatefulWidget {
   const ProviderProfilePage({super.key});
@@ -14,6 +18,7 @@ class ProviderProfilePage extends StatefulWidget {
 class _ProviderProfilePageState extends State<ProviderProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final RatingService _ratingService = RatingService();
   
   Map<String, dynamic>? userData;
   int totalServices = 0;
@@ -30,20 +35,17 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        // Get user data
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         
-        // Get services count
         final servicesSnapshot = await _firestore
             .collection('services')
             .where('providerId', isEqualTo: user.uid)
             .get();
         
-        // Get completed requests count
         final completedSnapshot = await _firestore
             .collection('requests')
             .where('providerId', isEqualTo: user.uid)
-            .where('status', isEqualTo: 'completed')
+            .where('status', isEqualTo: 'Completed')
             .get();
 
         setState(() {
@@ -80,6 +82,10 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     final String email = userData?['email'] ?? user?.email ?? 'No email';
     final String phone = userData?['phone'] ?? 'No phone';
     final String initial = providerName.isNotEmpty ? providerName[0].toUpperCase() : 'P';
+    
+    // Rating data
+    final double avgRating = (userData?['averageRating'] ?? 0).toDouble();
+    final int totalRatings = userData?['totalRatings'] ?? 0;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -106,7 +112,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                 MaterialPageRoute(
                   builder: (context) => const EditProfilePage(),
                 ),
-              ).then((_) => _loadProviderData()); // Reload data after edit
+              ).then((_) => _loadProviderData());
             },
           ),
         ],
@@ -126,7 +132,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
             ),
             const SizedBox(height: 16),
             
-            // Name and Badge
+            // Name
             Text(
               providerName,
               style: const TextStyle(
@@ -136,6 +142,8 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
               ),
             ),
             const SizedBox(height: 8),
+            
+            // Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
@@ -158,6 +166,17 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                 ],
               ),
             ),
+            
+            const SizedBox(height: 12),
+            
+            // ⭐ RATING DISPLAY
+            if (totalRatings > 0)
+              RatingDisplay(
+                rating: avgRating,
+                totalRatings: totalRatings,
+                starSize: 20,
+              ),
+            
             const SizedBox(height: 20),
             
             // Contact Info Card
@@ -197,6 +216,140 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
                 ),
               ],
             ),
+            
+            const SizedBox(height: 30),
+            
+            // ⭐ RATINGS SECTION
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Client Reviews",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 11, 53, 87),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            
+            StreamBuilder<List<RatingModel>>(
+              stream: _ratingService.getProviderRatings(user!.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "No reviews yet",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  );
+                }
+
+                final ratings = snapshot.data!;
+
+                return Column(
+                  children: ratings.take(5).map((rating) {
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: Colors.blue[100],
+                                  child: Text(
+                                    rating.clientName.isNotEmpty
+                                        ? rating.clientName[0].toUpperCase()
+                                        : "C",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color.fromARGB(255, 11, 53, 87),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        rating.clientName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      Text(
+                                        DateFormat('MMM dd, yyyy').format(rating.createdAt),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                RatingStarsWidget(
+                                  rating: rating.rating,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              rating.review,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            if (rating.serviceName.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  "Service: ${rating.serviceName}",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue[800],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+            
             const SizedBox(height: 30),
             
             // Quick Actions

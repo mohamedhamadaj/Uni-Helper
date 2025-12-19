@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'service_list_page.dart';
 import 'service_detail_page.dart';
 import 'profile_page.dart';
 import 'Request_Page.dart';
 import 'login_page.dart';
 import 'client_request_page.dart';
+import '../widgets/rating_stars_widget.dart';
 
 class HomePage extends StatefulWidget {
   final String role;
@@ -29,7 +29,7 @@ class _HomePageState extends State<HomePage> {
     fetchServices();
   }
 
-  /// Load services from Firestore instead of demo data
+  /// Load services from Firestore
   Future<void> fetchServices() async {
     var snapshot = await FirebaseFirestore.instance
         .collection("services")
@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
 
     for (var doc in snapshot.docs) {
       var data = doc.data();
-      data["id"] = doc.id;
+      data["id"] = doc.id; // ← مهم جداً
       temp.add(data);
     }
 
@@ -54,7 +54,7 @@ class _HomePageState extends State<HomePage> {
   void _filterServices(String query) {
     setState(() {
       filteredServices = allServices.where((service) {
-        final name = (service["name"] ?? "").toLowerCase();
+        final name = (service["serviceName"] ?? service["name"] ?? "").toLowerCase();
         final desc = (service["description"] ?? "").toLowerCase();
         query = query.toLowerCase();
         return name.contains(query) || desc.contains(query);
@@ -72,13 +72,9 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             _buildRoleBadge(),
-
             const SizedBox(height: 16),
-
             _buildSearchBar(),
-
             const SizedBox(height: 20),
-
             const Text(
               "Featured Services",
               style: TextStyle(
@@ -88,7 +84,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 20),
-
             Expanded(
               child: filteredServices.isEmpty
                   ? const Center(child: Text("No services found"))
@@ -202,8 +197,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -293,8 +287,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildServiceCard(
-      Map<String, dynamic> service, BuildContext context) {
+  Widget _buildServiceCard(Map<String, dynamic> service, BuildContext context) {
+    final serviceName = service['serviceName'] ?? service['name'] ?? "Service";
+    final description = service['description'] ?? "";
+    final price = service['price']?.toString() ?? "N/A";
+    final deliveryTime = service['deliveryTime'] ?? "N/A";
+    final serviceId = service['id'] ?? "";
+    
+    // Rating data
+    final double avgRating = (service['averageRating'] ?? 0).toDouble();
+    final int totalRatings = service['totalRatings'] ?? 0;
+
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16),
@@ -304,40 +307,76 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Service Name
             Text(
-              service['name'] ?? "",
+              serviceName,
               style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
+              ),
             ),
             const SizedBox(height: 6),
-            Text(service['description'] ?? ""),
+            
+            // Rating
+            if (totalRatings > 0) ...[
+              RatingDisplay(
+                rating: avgRating,
+                totalRatings: totalRatings,
+                starSize: 16,
+              ),
+              const SizedBox(height: 6),
+            ],
+            
+            // Description
+            Text(
+              description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.grey[700]),
+            ),
             const SizedBox(height: 6),
+            
+            // Price & Time
             Row(
               children: [
-                Text(service['price'] ?? "",
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.green)),
+                Text(
+                  price,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
                 const Spacer(),
-                Text(service['deliveryTime'] ?? "")
+                Row(
+                  children: [
+                    const Icon(Icons.timer, size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(deliveryTime),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 12),
+            
+            // Buttons
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color.fromARGB(255, 249, 250, 251)),
-                    child: const Text("Service Details"),
+                      backgroundColor: const Color.fromARGB(255, 249, 250, 251),
+                      foregroundColor: primaryColor,
+                    ),
+                    child: const Text("View Details"),
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              ServicesDetailsPage(serviceData: service),
+                          builder: (_) => ServicesDetailsPage(
+                            serviceId: serviceId, // ← الحل هنا!
+                            serviceData: service,
+                          ),
                         ),
                       );
                     },
@@ -369,118 +408,150 @@ class _HomePageState extends State<HomePage> {
   // ================= SEND REQUEST TO FIRESTORE ===================
 
   void _showRequestDialog(BuildContext context, Map<String, dynamic> service) {
-  final desc = TextEditingController();
-  final time = TextEditingController();
-  final budget = TextEditingController();
+    final desc = TextEditingController();
+    final time = TextEditingController();
+    final budget = TextEditingController();
 
-  final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
-  showDialog(
-    context: context,
-    builder: (_) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text(
-          "Request ${service['name']}",
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, color: primaryColor),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: desc,
-                maxLines: 3,
-                decoration: const InputDecoration(
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Text(
+            "Request ${service['serviceName'] ?? service['name']}",
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: primaryColor,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: desc,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
                     labelText: "Description",
-                    hintText: "Describe your request..."),
-              ),
-              SizedBox(height: 10),
-              TextField(
-                controller: time,
-                decoration: const InputDecoration(
-                    labelText: "Delivery Time", hintText: "ex: 3 days"),
-              ),
-              SizedBox(height: 10),
-              TextField(
-                controller: budget,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: "Budget", hintText: "ex: 200 EGP"),
-              ),
-            ],
+                    hintText: "Describe your request...",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: time,
+                  decoration: const InputDecoration(
+                    labelText: "Delivery Time",
+                    hintText: "ex: 3 days",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: budget,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Budget",
+                    hintText: "ex: 200 EGP",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
+          actions: [
+            TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-            onPressed: () async {
-              Navigator.pop(context);
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+              onPressed: () async {
+                if (desc.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Please add a description!"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
 
-              // ==============================
-              // جلب بيانات الـ CLIENT من users
-              // ==============================
-              final clientSnapshot = await FirebaseFirestore.instance
-                  .collection("users")
-                  .doc(user!.uid)
-                  .get();
+                Navigator.pop(context);
 
-              final clientData = clientSnapshot.data() ?? {};
+                try {
+                  // Get CLIENT data
+                  final clientSnapshot = await FirebaseFirestore.instance
+                      .collection("users")
+                      .doc(user!.uid)
+                      .get();
 
-              final clientName = clientData["username"] ?? "";
-              final clientEmail = clientData["email"] ?? user.email ?? "";
+                  final clientData = clientSnapshot.data() ?? {};
+                  final clientName = clientData["username"] ?? clientData["name"] ?? "Unknown";
+                  final clientEmail = clientData["email"] ?? user.email ?? "";
+                  final clientPhone = clientData["phone"] ?? "No phone";
 
+                  // Get PROVIDER data
+                  final providerSnapshot = await FirebaseFirestore.instance
+                      .collection("users")
+                      .doc(service["providerId"])
+                      .get();
 
-              // ==============================
-              // جلب بيانات الـ PROVIDER من users
-              // ==============================
-              final providerSnapshot = await FirebaseFirestore.instance
-                  .collection("users")
-                  .doc(service["providerId"])
-                  .get();
+                  final providerData = providerSnapshot.data() ?? {};
+                  final providerName = providerData["username"] ?? providerData["name"] ?? "Unknown";
+                  final providerEmail = providerData["email"] ?? "";
+                  final providerPhone = providerData["phone"] ?? "No phone";
 
-              final providerData = providerSnapshot.data() ?? {};
+                  // Save request to Firestore
+                  await FirebaseFirestore.instance.collection("requests").add({
+                    "clientId": user.uid,
+                    "clientName": clientName,
+                    "clientEmail": clientEmail,
+                    "clientPhone": clientPhone,
 
-              final providerName = providerData["username"] ?? "";
-              final providerEmail = providerData["email"] ?? "";
+                    "providerId": service["providerId"],
+                    "providerName": providerName,
+                    "providerEmail": providerEmail,
+                    "providerPhone": providerPhone,
 
+                    "serviceId": service["id"],
+                    "serviceName": service["serviceName"] ?? service["name"],
 
-              // ==============================
-              // حفظ الطلب في Firestore
-              // ==============================
-              await FirebaseFirestore.instance.collection("requests").add({
-                "clientId": user.uid,
-                "clientName": clientName,
-                "clientEmail": clientEmail,
+                    "description": desc.text.trim(),
+                    "deliveryTime": time.text.trim(),
+                    "budget": budget.text.trim(),
 
-                "providerId": service["providerId"],
-                "providerName": providerName,
-                "providerEmail": providerEmail,
+                    "status": "Pending",
+                    "isRated": false,
+                    "timestamp": FieldValue.serverTimestamp(),
+                  });
 
-                "serviceId": service["id"],
-                "serviceName": service["name"],
-
-                "description": desc.text,
-                "timeline": time.text,
-                "budget": budget.text,
-
-                "status": "Pending",
-                "timestamp": FieldValue.serverTimestamp(),
-              });
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Request Sent for ${service['name']}")),
-              );
-            },
-            child: const Text("Send"),
-          ),
-        ],
-      );
-    },
-  );
-}
-
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Request sent successfully!"),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Error: $e"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text("Send Request"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
