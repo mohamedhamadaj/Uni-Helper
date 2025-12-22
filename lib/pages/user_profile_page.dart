@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'package:ower_project/pages/service_detail_page.dart';
 import 'package:ower_project/sendEmail/sendEmail.dart';
 import '../widgets/rating_stars_widget.dart';
 import '../services/rating_services.dart';
-import '../models/rating_model.dart';
-
 class UserProfilePage extends StatelessWidget {
   final String userId;
 
@@ -94,7 +91,7 @@ class UserProfilePage extends StatelessWidget {
                         child: Text(
                           email,
                           style: const TextStyle(
-                            color: Colors.white70,
+                            color: Color.fromARGB(255, 255, 255, 255),
                             fontSize: 14,
                             decoration: TextDecoration.underline,
                           ),
@@ -133,36 +130,9 @@ class UserProfilePage extends StatelessWidget {
                     elevation: 3,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "Role:",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Chip(
-                            label: Text(
-                              role,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            backgroundColor:
-                                role == "Provider" ? Colors.green : Colors.blue,
-                          ),
-                        ],
+                    ), 
                       ),
                     ),
-                  ),
-                ),
-
                 // ---------- RATING STATS ----------
                 if (role == "Provider" && totalRatings > 0) ...[
                   const SizedBox(height: 12),
@@ -213,157 +183,6 @@ class UserProfilePage extends StatelessWidget {
                     ),
                   ),
                 ],
-
-                // ---------- REVIEWS SECTION ----------
-                if (role == "Provider") ...[
-                  const SizedBox(height: 24),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      "Customer Reviews",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 11, 53, 87),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  StreamBuilder<List<RatingModel>>(
-                    stream: ratingService.getProviderRatings(userId),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                "No reviews yet",
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final ratings = snapshot.data!;
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: ratings.take(5).map((rating) {
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 20,
-                                          backgroundColor: Colors.blue[100],
-                                          child: Text(
-                                            rating.clientName.isNotEmpty
-                                                ? rating.clientName[0]
-                                                    .toUpperCase()
-                                                : "C",
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color.fromARGB(
-                                                  255, 11, 53, 87),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                rating.clientName,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                ),
-                                              ),
-                                              Text(
-                                                DateFormat('MMM dd, yyyy')
-                                                    .format(rating.createdAt),
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        RatingStarsWidget(
-                                          rating: rating.rating,
-                                          size: 18,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      rating.review,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                    if (rating.serviceName.isNotEmpty) ...[
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue[50],
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          "Service: ${rating.serviceName}",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.blue[800],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-
                 // ---------- SERVICES ----------
                 if (role == "Provider") ...[
                   const SizedBox(height: 24),
@@ -379,7 +198,6 @@ class UserProfilePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection("services")
@@ -420,8 +238,8 @@ class UserProfilePage extends StatelessWidget {
                               as Map<String, dynamic>;
                           
                           final serviceName = service["serviceName"] ?? 
-                                             service["name"] ?? 
-                                             "Service";
+                                            service["name"] ?? 
+                                            "Service";
                           final description = service["description"] ?? "";
                           final price = service["price"]?.toString() ?? "N/A";
 

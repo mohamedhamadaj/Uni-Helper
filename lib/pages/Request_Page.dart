@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ower_project/pages/user_profile_page.dart';
 import 'package:ower_project/sendEmail/sendEmail.dart';
 
 
@@ -96,6 +97,7 @@ class _RequestPageState extends State<RequestPage> {
               final clientPhone = data["clientPhone"] ?? "No phone";
               final serviceName = data["serviceName"] ?? "Unknown service";
               final description = data["description"] ?? "";
+              final clientId = data["clientId"] ?? "";
               final status = data["status"] ?? "Pending";
 
               return Card(
@@ -113,13 +115,27 @@ class _RequestPageState extends State<RequestPage> {
                         children: [
                           Icon(Icons.person, color: primaryColor),
                           const SizedBox(width: 8),
-                          Text(
-                            clientName,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => UserProfilePage(
+                                        userId: data["clientId"] ?? "",
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  clientName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Color.fromARGB(255, 11, 53, 87),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
                           const Spacer(),
 
                           /// STATUS BUTTON

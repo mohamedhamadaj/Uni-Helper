@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ower_project/pages/user_profile_page.dart';
 import 'package:ower_project/sendEmail/sendEmail.dart';
 import 'add_rating_page.dart';
 
@@ -133,13 +134,27 @@ class _ClientRequestPageState extends State<ClientRequestPage> {
                         children: [
                           const Icon(Icons.person, size: 16, color: Colors.grey),
                           const SizedBox(width: 6),
-                          Text(
-                            "Provider: $providerName",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => UserProfilePage(
+                                        userId: data["providerId"] ?? "",
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  providerName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Color.fromARGB(255, 11, 53, 87),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
                         ],
                       ),
 

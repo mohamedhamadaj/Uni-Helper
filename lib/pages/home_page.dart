@@ -494,15 +494,9 @@ class _HomePageState extends State<HomePage> {
                   final clientPhone = clientData["phone"] ?? "No phone";
 
                   // Get PROVIDER data
-                  final providerSnapshot = await FirebaseFirestore.instance
-                      .collection("users")
-                      .doc(service["providerId"])
-                      .get();
-
-                  final providerData = providerSnapshot.data() ?? {};
-                  final providerName = providerData["username"] ?? providerData["name"] ?? "Unknown";
-                  final providerEmail = providerData["email"] ?? "";
-                  final providerPhone = providerData["phone"] ?? "No phone";
+                  final providerName  = service["providerName"] ?? "Unknown";
+final providerEmail = service["providerEmail"] ?? "";
+final providerPhone = service["providerPhone"] ?? "No phone";
 
                   // Save request to Firestore
                   await FirebaseFirestore.instance.collection("requests").add({
